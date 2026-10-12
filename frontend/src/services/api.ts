@@ -11,7 +11,54 @@ import {
   User
 } from '../types';
 
-const BASE_URL = (import.meta.env.VITE_API_URL as string) || '/api';
+export const getBaseUrl = (): string => {
+  const envUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+  if (!envUrl) {
+    return '/api';
+  }
+  const clean = envUrl.replace(/\/+$/, '');
+  return clean.endsWith('/api') ? clean : `${clean}/api`;
+};
+
+export const getWebSocketUrl = (): string => {
+  const envWs = (import.meta.env.VITE_WS_URL as string | undefined)?.trim();
+  if (envWs) {
+    const cleanWs = envWs.replace(/\/+$/, '');
+    return cleanWs.endsWith('/api/execute/interactive')
+      ? cleanWs
+      : `${cleanWs.endsWith('/api') ? cleanWs : `${cleanWs}/api`}/execute/interactive`;
+  }
+
+  const envApi = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+  if (envApi) {
+    let wsBase = envApi.replace(/\/+$/, '');
+    if (wsBase.startsWith('https://')) {
+      wsBase = wsBase.replace(/^https:\/\//, 'wss://');
+    } else if (wsBase.startsWith('http://')) {
+      wsBase = wsBase.replace(/^http:\/\//, 'ws://');
+    } else if (!wsBase.startsWith('ws://') && !wsBase.startsWith('wss://')) {
+      const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+      wsBase = `${isHttps ? 'wss' : 'ws'}://${wsBase}`;
+    }
+    const cleanBase = wsBase.endsWith('/api') ? wsBase : `${wsBase}/api`;
+    return `${cleanBase}/execute/interactive`;
+  }
+
+  // Local development fallback
+  if (typeof window !== 'undefined') {
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocalhost) {
+      return `ws://${window.location.hostname}:8000/api/execute/interactive`;
+    }
+    const isHttps = window.location.protocol === 'https:';
+    const wsProto = isHttps ? 'wss:' : 'ws:';
+    return `${wsProto}//${window.location.host}/api/execute/interactive`;
+  }
+
+  return 'ws://localhost:8000/api/execute/interactive';
+};
+
+const BASE_URL = getBaseUrl();
 
 function getAuthHeader(): Record<string, string> {
   const token = localStorage.getItem('codeforge_token');
@@ -87,12 +134,7 @@ export const api = {
     files?: Array<{ name: string; path?: string; content: string; is_folder?: boolean }>,
     entryFile?: string
   ) => {
-    const isHttps = window.location.protocol === 'https:';
-    const wsProto = isHttps ? 'wss:' : 'ws:';
-    const host = (window.location.port === '5173' || window.location.port === '3000')
-      ? `${window.location.hostname}:8000`
-      : window.location.host;
-    const wsUrl = (import.meta.env.VITE_WS_URL as string) || `${wsProto}//${host}/api/execute/interactive`;
+    const wsUrl = getWebSocketUrl();
     const socket = new WebSocket(wsUrl);
 
     let isConnected = false;

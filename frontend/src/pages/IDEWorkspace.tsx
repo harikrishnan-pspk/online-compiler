@@ -686,18 +686,27 @@ export const IDEWorkspace: React.FC = () => {
         },
         onError: () => {
           setIsRunning(false);
+          const isRemoteHost = typeof window !== 'undefined' &&
+            window.location.hostname !== 'localhost' &&
+            window.location.hostname !== '127.0.0.1';
+          const hasCustomEndpoint = !!(import.meta.env.VITE_API_URL || import.meta.env.VITE_WS_URL);
+
+          const errorMessage = (isRemoteHost && !hasCustomEndpoint)
+            ? 'Execution backend not connected: The frontend is running on GitHub Pages, but no backend execution server is configured. Please deploy the CodeForge backend (using Docker/Render/Railway) and configure VITE_API_URL or VITE_WS_URL.'
+            : 'WebSocket connection to interactive execution runner failed. Please verify that the backend server is running and accessible.';
+
           setExecutionResult({
             stdout: accumulatedOut,
-            stderr: 'WebSocket connection to interactive execution runner failed.',
+            stderr: errorMessage,
             output: accumulatedOut,
-            error: 'WebSocket connection to interactive execution runner failed.',
+            error: errorMessage,
             exit_code: 1,
             execution_time: 0.0,
             memory_mb: 0.0,
             status: 'Execution Failed',
             language: langToRun
           });
-          showToast('Interactive execution connection error', 'error');
+          showToast(isRemoteHost && !hasCustomEndpoint ? 'Execution backend not configured' : 'Interactive execution connection error', 'error');
         }
       },
       preloadedStdin,
