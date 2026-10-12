@@ -11,7 +11,7 @@ import {
   User
 } from '../types';
 
-const BASE_URL = '/api';
+const BASE_URL = (import.meta.env.VITE_API_URL as string) || '/api';
 
 function getAuthHeader(): Record<string, string> {
   const token = localStorage.getItem('codeforge_token');
@@ -92,7 +92,7 @@ export const api = {
     const host = (window.location.port === '5173' || window.location.port === '3000')
       ? `${window.location.hostname}:8000`
       : window.location.host;
-    const wsUrl = `${wsProto}//${host}/api/execute/interactive`;
+    const wsUrl = (import.meta.env.VITE_WS_URL as string) || `${wsProto}//${host}/api/execute/interactive`;
     const socket = new WebSocket(wsUrl);
 
     let isConnected = false;
