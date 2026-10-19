@@ -16,8 +16,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Verify compilers
-RUN javac -version && java -version && gcc --version && node -v
+# Verify compilers and toolchains
+RUN javac -version && java -version && gcc --version && g++ --version && node -v && python --version
 
 # Create isolated unprivileged execution user
 RUN groupadd -r codeforge && useradd -r -g codeforge -m -d /home/codeforge codeforge
@@ -38,4 +38,4 @@ USER codeforge
 
 EXPOSE 8000
 
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

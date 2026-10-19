@@ -38,13 +38,10 @@ class CExecutor(BaseExecutor):
             norm_stdin += "\n"
 
         # Check if local gcc or clang is available and functional
-        local_w64 = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "compilers", "w64devkit", "bin", "gcc.exe"))
-        gcc_bin = local_w64 if os.path.exists(local_w64) else (shutil.which("gcc") or shutil.which("clang"))
+        from app.execution.compiler_registry import get_gcc_toolchain
+        gcc_bin = get_gcc_toolchain(cpp=False)
         if gcc_bin:
-            local_res = self._execute_local_c(gcc_bin, code, norm_stdin, timeout, files, entry_file)
-            # If local compiler is too old or failed due to compiler issues, fallback to container
-            if local_res.status != "Compilation Error":
-                return local_res
+            return self._execute_local_c(gcc_bin, code, norm_stdin, timeout, files, entry_file)
 
         # Otherwise execute in secure isolated container sandbox (Wandbox GCC)
         return self._execute_container_sandbox(
@@ -73,10 +70,15 @@ class CExecutor(BaseExecutor):
             if not src_files:
                 src_files = [os.path.join(temp_dir, "main.c")]
 
-            # 1. Compile with C11 standard
+            # 1. Compile with C11 standard and link standard math library
             compile_start = time.time()
+            compile_cmd = [gcc_bin, "-O2", "-Wall", "-std=c11", "-I", temp_dir] + src_files
+            if os.name != "nt":
+                compile_cmd.append("-lm")
+            compile_cmd.extend(["-o", out_bin])
+
             compile_proc = subprocess.run(
-                [gcc_bin, "-O2", "-Wall", "-std=c11", "-I", temp_dir] + src_files + ["-o", out_bin],
+                compile_cmd,
                 capture_output=True,
                 text=True,
                 cwd=temp_dir,

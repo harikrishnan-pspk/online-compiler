@@ -42,7 +42,7 @@ class JavaExecutor(BaseExecutor):
         from app.execution.compiler_registry import get_jdk_toolchain
         javac_bin, java_bin = get_jdk_toolchain()
 
-        if os.path.exists(javac_bin) and os.path.exists(java_bin):
+        if javac_bin and java_bin and (os.path.isfile(javac_bin) or shutil.which(javac_bin)) and (os.path.isfile(java_bin) or shutil.which(java_bin)):
             return self._execute_local_java(javac_bin, java_bin, class_name, code, stdin, timeout, files, entry_file)
 
         # Container sandbox execution: Wandbox compiles as 'prog.java', so replace 'public class <Name>' with 'class <Name>'
@@ -95,9 +95,9 @@ class JavaExecutor(BaseExecutor):
                     exit_code=compile_proc.returncode
                 )
 
-            # 2. Run JVM
+            # 2. Run JVM with memory limit
             res = self._execute_local_process(
-                command=[java_bin, "-cp", temp_dir, class_name],
+                command=[java_bin, "-Xmx256m", "-cp", temp_dir, class_name],
                 cwd=temp_dir,
                 stdin=stdin,
                 timeout=timeout,

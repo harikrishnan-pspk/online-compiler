@@ -34,8 +34,8 @@ class CppExecutor(BaseExecutor):
             )
 
         # Check if local g++ or clang++ is available
-        local_w64 = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "compilers", "w64devkit", "bin", "g++.exe"))
-        gpp_bin = local_w64 if os.path.exists(local_w64) else (shutil.which("g++") or shutil.which("clang++"))
+        from app.execution.compiler_registry import get_gcc_toolchain
+        gpp_bin = get_gcc_toolchain(cpp=True)
         if gpp_bin:
             return self._execute_local_cpp(gpp_bin, code, stdin, timeout, files, entry_file)
 
@@ -66,14 +66,14 @@ class CppExecutor(BaseExecutor):
             if not src_files:
                 src_files = [os.path.join(temp_dir, "main.cpp")]
 
-            # 1. Compile
+            # 1. Compile with C++17 standard
             compile_start = time.time()
             compile_proc = subprocess.run(
-                [gpp_bin, "-std=c++20", "-O2", "-Wall", "-I", temp_dir] + src_files + ["-o", out_bin],
+                [gpp_bin, "-std=c++17", "-O2", "-Wall", "-I", temp_dir] + src_files + ["-o", out_bin],
                 capture_output=True,
                 text=True,
                 cwd=temp_dir,
-                timeout=10
+                timeout=15
             )
 
             if compile_proc.returncode != 0:

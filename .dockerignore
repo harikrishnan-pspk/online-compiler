@@ -1,0 +1,9 @@
+backend/compilers/
+backend/*.db
+backend/*.sqlite3
+**/__pycache__/
+**/*.pyc
+frontend/node_modules/
+frontend/dist/
+.git/
+.gitignore

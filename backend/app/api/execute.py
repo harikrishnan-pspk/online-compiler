@@ -198,5 +198,5 @@ async def websocket_interactive_execute(websocket: WebSocket, db: Session = Depe
                 db.add(hist)
                 db.commit()
             except Exception:
-                pass
+                db.rollback()
 

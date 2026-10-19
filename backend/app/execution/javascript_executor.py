@@ -32,7 +32,8 @@ class JavaScriptExecutor(BaseExecutor):
                 exit_code=0
             )
 
-        node_bin = shutil.which("node")
+        from app.execution.compiler_registry import get_node_binary
+        node_bin = get_node_binary()
         if node_bin:
             temp_dir = tempfile.mkdtemp(prefix="codeforge_js_")
             try:

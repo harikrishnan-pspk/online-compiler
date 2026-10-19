@@ -71,16 +71,47 @@ app.include_router(history.router)
 app.include_router(practice.router)
 app.include_router(visualize.router)
 
+@app.get("/")
+@app.get("/health")
 @app.get("/api/health")
 def health_check():
+    from app.execution.compiler_registry import (
+        get_jdk_toolchain,
+        get_gcc_toolchain,
+        get_node_binary,
+        get_python_binary
+    )
+    gcc_path = get_gcc_toolchain(cpp=False)
+    gpp_path = get_gcc_toolchain(cpp=True)
+    javac_path, java_path = get_jdk_toolchain()
+    node_path = get_node_binary()
+    py_path = get_python_binary()
+
     return {
         "status": "healthy",
         "app": settings.APP_NAME,
         "version": settings.VERSION,
         "sandbox": "active",
-        "supported_languages": ["c", "cpp", "python", "java", "javascript"]
+        "supported_languages": ["c", "cpp", "python", "java", "javascript"],
+        "compilers": {
+            "gcc": bool(gcc_path),
+            "gpp": bool(gpp_path),
+            "jdk": bool(javac_path and java_path),
+            "node": bool(node_path),
+            "python": bool(py_path)
+        },
+        "toolchain_paths": {
+            "gcc": gcc_path,
+            "gpp": gpp_path,
+            "javac": javac_path,
+            "java": java_path,
+            "node": node_path,
+            "python": py_path
+        }
     }
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.getenv("PORT", "8000"))
+    host = os.getenv("HOST", "0.0.0.0")
+    uvicorn.run("app.main:app", host=host, port=port, reload=True)

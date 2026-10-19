@@ -1,0 +1,13 @@
+compilers/
+*.db
+*.sqlite3
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+.env*
+.git/
+.gitignore

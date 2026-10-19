@@ -41,20 +41,6 @@ class InteractiveSession:
         self._threads = []
         self._closed = False
 
-    @staticmethod
-    def _find_gcc(cpp: bool = False) -> str:
-        exe_name = "g++.exe" if cpp else "gcc.exe"
-        # 1. Project local modern w64devkit
-        root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-        local_tool = os.path.join(root_dir, "compilers", "w64devkit", "bin", exe_name)
-        if os.path.exists(local_tool):
-            return local_tool
-        # 2. System PATH
-        which_result = shutil.which("g++" if cpp else "gcc")
-        if which_result:
-            return which_result
-        return "g++" if cpp else "gcc"
-
     def start(self) -> bool:
         self.start_time = time.time()
         try:
@@ -81,9 +67,22 @@ class InteractiveSession:
                         fp.write(content)
 
             # Compile or prepare command based on language
+            from app.execution.compiler_registry import (
+                get_gcc_toolchain,
+                get_jdk_toolchain,
+                get_node_binary,
+                get_python_binary
+            )
+
             if self.language in ("c", "cpp"):
                 is_cpp = self.language == "cpp"
-                compiler = self._find_gcc(cpp=is_cpp)
+                compiler = get_gcc_toolchain(cpp=is_cpp)
+                if not compiler:
+                    self.on_stderr(f"Compiler '{('g++' if is_cpp else 'gcc')}' is missing or not installed on this system.\n")
+                    self.on_exit(1, "Error", 0.0)
+                    self.cleanup()
+                    return False
+
                 src_ext = "cpp" if is_cpp else "c"
                 entry_name = self.entry_file or f"main.{src_ext}"
                 src_file = os.path.join(self.temp_dir, entry_name)
@@ -122,7 +121,10 @@ class InteractiveSession:
                     cmd.append("-std=c++17")
                 else:
                     cmd.append("-std=c11")
-                cmd.extend(src_files_to_compile + ["-o", out_bin])
+                cmd.extend(src_files_to_compile)
+                if not is_cpp and os.name != "nt":
+                    cmd.append("-lm")
+                cmd.extend(["-o", out_bin])
 
                 compile_res = subprocess.run(
                     cmd,
@@ -146,8 +148,9 @@ class InteractiveSession:
                 if not os.path.exists(src_file):
                     with open(src_file, "w", encoding="utf-8") as f:
                         f.write(self.code)
+                py_bin = get_python_binary()
                 # -u: unbuffered binary stdout and stderr
-                exec_cmd = [sys.executable, "-u", src_file]
+                exec_cmd = [py_bin, "-u", src_file]
 
             elif self.language in ("javascript", "js"):
                 entry_name = self.entry_file or "main.js"
@@ -155,12 +158,16 @@ class InteractiveSession:
                 if not os.path.exists(src_file):
                     with open(src_file, "w", encoding="utf-8") as f:
                         f.write(self.code)
-                node_bin = shutil.which("node") or "node"
+                node_bin = get_node_binary()
+                if not node_bin:
+                    self.on_stderr("Node.js runtime ('node') is missing or not installed on this system.\n")
+                    self.on_exit(1, "Error", 0.0)
+                    self.cleanup()
+                    return False
                 exec_cmd = [node_bin, src_file]
 
             elif self.language == "java":
                 import re
-                from app.execution.compiler_registry import get_jdk_toolchain
 
                 entry_name = self.entry_file or "Main.java"
                 class_match = re.search(r'(?:public\s+)?class\s+([A-Za-z0-9_]+)', self.code)
@@ -172,7 +179,7 @@ class InteractiveSession:
                         f.write(self.code)
 
                 javac_bin, java_bin = get_jdk_toolchain()
-                if not (os.path.exists(javac_bin) and os.path.exists(java_bin)):
+                if not (javac_bin and java_bin and (os.path.isfile(javac_bin) or shutil.which(javac_bin)) and (os.path.isfile(java_bin) or shutil.which(java_bin))):
                     self.on_stderr("Java execution environment (JDK) is missing or not configured.\n")
                     self.on_exit(1, "Error", 0.0)
                     self.cleanup()

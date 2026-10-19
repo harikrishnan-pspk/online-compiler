@@ -87,20 +87,25 @@ def run_code_and_record(
     result = executor.execute(code=code, stdin=stdin_data, files=files, entry_file=entry_file)
 
     # Persist in execution history
-    history_entry = ExecutionHistory(
-        user_id=user_id,
-        title=title or "Untitled",
-        language=language,
-        code=code,
-        stdin=clean_stdin,
-        stdout=result.stdout,
-        stderr=result.stderr,
-        exit_code=result.exit_code,
-        execution_time=result.execution_time,
-        memory_mb=result.memory_used if result.memory_used is not None else 0.0,
-        status=result.status
-    )
-    db.add(history_entry)
-    db.commit()
+    try:
+        history_entry = ExecutionHistory(
+            user_id=user_id,
+            title=title or "Untitled",
+            language=language,
+            code=code,
+            stdin=clean_stdin,
+            stdout=result.stdout,
+            stderr=result.stderr,
+            exit_code=result.exit_code,
+            execution_time=result.execution_time,
+            memory_mb=result.memory_used if result.memory_used is not None else 0.0,
+            status=result.status
+        )
+        db.add(history_entry)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        import logging
+        logging.getLogger("CodeForge").warning(f"Could not persist execution history: {e}")
 
     return result

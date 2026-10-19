@@ -12,7 +12,11 @@ import {
 } from '../types';
 
 export const getBaseUrl = (): string => {
-  const envUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+  const envUrl = (
+    (import.meta.env.VITE_API_URL as string | undefined) ||
+    (import.meta.env.VITE_BACKEND_URL as string | undefined)
+  )?.trim();
+
   if (!envUrl) {
     return '/api';
   }
@@ -29,7 +33,11 @@ export const getWebSocketUrl = (): string => {
       : `${cleanWs.endsWith('/api') ? cleanWs : `${cleanWs}/api`}/execute/interactive`;
   }
 
-  const envApi = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+  const envApi = (
+    (import.meta.env.VITE_API_URL as string | undefined) ||
+    (import.meta.env.VITE_BACKEND_URL as string | undefined)
+  )?.trim();
+
   if (envApi) {
     let wsBase = envApi.replace(/\/+$/, '');
     if (wsBase.startsWith('https://')) {
